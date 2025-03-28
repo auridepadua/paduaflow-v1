@@ -8,7 +8,7 @@ TOKENSTORE = os.path.expanduser("~/.garminconnect")
 client = Garmin()
 client.login(tokenstore=TOKENSTORE)
 
-# === Set date
+# === Set test date
 date_str = "2025-03-28"
 
 # === Safe fetch wrapper
@@ -65,14 +65,15 @@ export = {
     "calories": calories_data
 }
 
-# === Save to file
+# === Save master export
 with open("garmin_export_all.json", "w") as f:
     json.dump(export, f, indent=2)
-    
-# Save to per-day file
-per_day_file = f"garmin_export/{export_date}.json"
+
+# === Save daily export
+os.makedirs("garmin_export", exist_ok=True)
+per_day_file = f"garmin_export/{date_str}.json"
 with open(per_day_file, "w") as f:
-    json.dump(data, f, indent=2)
+    json.dump(export, f, indent=2)
 
 print(f"✅ Full Garmin data exported to garmin_export_all.json for {date_str}")
 print(f"✅ Per-day file also saved to {per_day_file}")
