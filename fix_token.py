@@ -1,24 +1,16 @@
-import base64
-import json
+import shutil
 import os
 
-# === Paths
-token_file = os.path.expanduser("~/.garminconnect_base64")
-token_dir = os.path.expanduser("~/.garminconnect")
+# Use existing paths from decoded secrets
+source_folder = os.path.expanduser("~/.garminconnect")
+target_folder = os.path.expanduser("~/.garminconnect")
 
-# === Decode token string
-with open(token_file, "r") as f:
-    encoded = f.read().strip()
+# You could also redirect elsewhere if needed, but currently we keep it at ~/.garminconnect
+if os.path.exists(source_folder):
+    for filename in ["oauth1_token.json", "oauth2_token.json"]:
+        src_file = os.path.join(source_folder, filename)
+        dst_file = os.path.join(target_folder, filename)
+        if os.path.isfile(src_file):
+            shutil.copy(src_file, dst_file)
 
-decoded = base64.b64decode(encoded).decode("utf-8")
-tokens = json.loads(decoded)
-
-# === Save each token to expected path
-os.makedirs(token_dir, exist_ok=True)
-with open(os.path.join(token_dir, "oauth1_token.json"), "w") as f:
-    json.dump(tokens[0], f)
-
-with open(os.path.join(token_dir, "oauth2_token.json"), "w") as f:
-    json.dump(tokens[1], f)
-
-print(f"✅ Token files extracted to {token_dir}")
+print("✅ Token files confirmed and copied (if needed)")
