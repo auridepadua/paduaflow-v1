@@ -1,7 +1,7 @@
 name: Debug Garmin Export
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   export:
@@ -10,8 +10,6 @@ jobs:
     env:
       GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
       GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
-      OAUTH1_TOKEN_B64: ${{ secrets.OAUTH1_TOKEN_B64 }}
-      OAUTH2_TOKEN_B64: ${{ secrets.OAUTH2_TOKEN_B64 }}
 
     steps:
       - name: Checkout repo
@@ -22,30 +20,27 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Create Garmin token directory
-        run: |
-          mkdir -p ~/.garminconnect
-          echo "$OAUTH1_TOKEN_B64" | base64 --decode > ~/.garminconnect/oauth1_token.json
-          echo "$OAUTH2_TOKEN_B64" | base64 --decode > ~/.garminconnect/oauth2_token.json
+      - name: Create token directory
+        run: mkdir -p /home/runner/.garminconnect
 
-      - name: Install dependencies
-        run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          elif [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            echo "⚠️ No requirements file found, installing manually"
-            pip install garth garminconnect openai twilio
-          fi
+      - name: Decode OAuth1 token
+        run: echo "${{ secrets.OAUTH1_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
 
-      - name: Run Garmin Export for today
+      - name: Decode OAuth2 token
+        run: echo "${{ secrets.OAUTH2_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
+
+      - name: Install dev and test dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements-test.txt
+
+      - name: Run export for today
         run: |
           today=$(date +%F)
-          python garmin_export_all.py "$today"
+          echo "📦 Exporting Garmin data for $today"
+          python garmin_export_all.py $today
 
-      - name: Show Garmin export output
+      - name: Show Garmin JSON (if exists)
         run: |
-          today=$(date +%F)
-          echo "📦 Garmin JSON for $today"
-          cat "garmin_export/$today.json"
+          ls -l garmin_export || echo "No export found."
+          cat garmin_export/*.json || echo "Nothing to show."
