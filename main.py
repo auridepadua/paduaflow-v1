@@ -13,6 +13,13 @@ TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
 # === Load Garmin data
 with open("garmin_export_all.json", "r") as f:
     garmin_data = json.load(f)
+
+# === Load previous context (if available)
+try:
+    with open("context_last_day.json", "r") as f:
+        previous_data = json.load(f)
+except FileNotFoundError:
+    previous_data = None
     
 # === Prepare required data variables before use
 steps_data = garmin_data.get("steps", {})
