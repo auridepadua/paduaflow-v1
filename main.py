@@ -13,6 +13,11 @@ TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
 # === Load Garmin data
 with open("garmin_export_all.json", "r") as f:
     garmin_data = json.load(f)
+    
+# === Prepare required data variables before use
+steps_data = garmin_data.get("steps", {})
+sleep_data = garmin_data.get("sleep", {}).get("dailySleepDTO", {})
+rhr_data = garmin_data.get("rhr", {})
 
 # === Trimmed key values
 date = garmin_data.get("date")
