@@ -2,6 +2,7 @@ from garminconnect import Garmin
 from datetime import datetime
 import json
 import os
+import sys
 
 # === Auth
 TOKENSTORE = os.path.expanduser("~/.garminconnect")
@@ -9,7 +10,7 @@ client = Garmin()
 client.login(tokenstore=TOKENSTORE)
 
 # === Set test date
-date_str = "2025-03-28"
+date_str = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
 
 # === Safe fetch wrapper
 def try_fetch(fetcher, fallback):
