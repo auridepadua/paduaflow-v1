@@ -1,4 +1,4 @@
-from openai import openAI
+from openai import OpenAI
 from twilio.rest import Client
 import json
 import os
