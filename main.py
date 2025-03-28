@@ -57,6 +57,23 @@ print(json.dumps(clean_data(garmin_data), indent=2))
 # === OpenAI Client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# === Create trimmed Garmin payload for summarization
+summary_payload = {
+    "date": garmin_data.get("date"),
+    "steps": garmin_data.get("steps"),
+    "sleep": garmin_data.get("sleep"),
+    "rhr": garmin_data.get("rhr"),
+    "body_battery": garmin_data.get("body_battery"),
+    "workout": garmin_data.get("workout"),
+    "heart_rate": garmin_data.get("heart_rate"),
+    "stress": garmin_data.get("stress"),
+    "respiration": garmin_data.get("respiration"),
+    "hydration": garmin_data.get("hydration"),
+    "spo2": garmin_data.get("spo2"),
+    "training_readiness": garmin_data.get("training_readiness"),
+    "calories": garmin_data.get("calories")
+}
+
 # === Step 1: Summarize Garmin data with GPT-3.5
 summary_prompt = f"""
 You're a personal health assistant. Summarize the user's Garmin data into key highlights.
