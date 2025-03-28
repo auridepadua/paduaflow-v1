@@ -70,30 +70,28 @@ summary_payload = {
     "calories": garmin_data.get("calories")
 }
 
-# === Step 1: Summarize Garmin data with GPT-3.5
-summary_prompt = f"""
-You're a personal health assistant. Summarize the user's Garmin data into key highlights.
+# === Load compact file (already summarized)
+with open("garmin_export/compact.json") as f:
+    summarized_data = json.load(f)
 
-Be detailed on:
-- Sleep data (quality, total hours, light/deep/REM)
-- Resting heart rate trends
-- Activity, steps, and calories
-- Stress or recovery patterns
-- HRV if available
+# === Build prompt with only essential summary data
+summary_prompt = f"""Summarize the following Garmin health data for {summarized_data['date']}:
+- Sleep duration and quality
+- Resting heart rate
+- Stress and body battery levels
+- Calories spent
+- Workout activity insights
 
-Raw Garmin export:
-{json.dumps(clean_data(garmin_data))}
-"""
+Answer in a brief, helpful tone.\n\nData:\n{json.dumps(summarized_data)}"""
 
-summary_response = client.chat.completions.create(
+# === Send to OpenAI
+summary_response = openai.ChatCompletion.create(
     model="gpt-3.5-turbo",
-    messages=[
-        {"role": "system", "content": "You the most performance-driven sprinting coach."},
-        {"role": "user", "content": summary_prompt}
-    ],
-    temperature=0.4,
-    max_tokens=1500
+    messages=[{"role": "user", "content": summary_prompt}]
 )
+
+print("\n🧠 OpenAI Summary:\n")
+print(summary_response['choices'][0]['message']['content'])
 
 summary = summary_response.choices[0].message.content.strip()
 
