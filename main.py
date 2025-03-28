@@ -50,10 +50,6 @@ if is_blank:
     )
     exit("❌ Garmin data is blank — exiting early.")
 
-# === Print raw cleaned data for debug
-print("📦 Garmin Raw Export:")
-print(json.dumps(clean_data(garmin_data), indent=2))
-
 # === OpenAI Client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
