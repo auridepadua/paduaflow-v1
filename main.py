@@ -79,6 +79,7 @@ prompt = f"""
 You're my personal coach. Based on the data below, give me a short WhatsApp-style message.
 
 - Start with: "Hello Aurelio 👋"
+- Include Sleep stats and HRV stats
 - Include only actionable insights (1–3 sentences max)
 - Recommend if I should train PM based on recovery, sleep, stress
 - Add a diet tip based on activity and calories
