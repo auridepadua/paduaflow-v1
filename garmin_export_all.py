@@ -1,11 +1,15 @@
 from garminconnect import Garmin
 from datetime import datetime, timedelta
 import json, os, statistics
+import openai
 
 # === Auth
 TOKENSTORE = os.path.expanduser("~/.garminconnect")
 client = Garmin()
 client.login(tokenstore=TOKENSTORE)
+
+# === OpenAI setup
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 # === Date Setup
 now = datetime.now()
@@ -46,9 +50,13 @@ rhr = safe(lambda: client.get_rhr_day(date_str), {})
 hr_day = safe(lambda: client.get_heart_rates(date_str), [])
 hr_sleep = safe(lambda: client.get_heart_rates(sleep_start, sleep_end), [])
 activities = safe(lambda: client.get_activities_by_date(date_str, date_str), [])
-
-# === Filter morning activities today
 today_acts = safe(lambda: client.get_activities_by_date(now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")), [])
+
+# === New: Stress, Calories, Body Battery
+stress = safe(lambda: client.get_stress_data(date_str), [])
+calories = safe(lambda: client.get_stats(date_str), {})
+body_battery = safe(lambda: client.get_body_battery(date_str), [])
+
 early_today = [a for a in today_acts if a.get("startTimeLocal") and datetime.fromisoformat(a["startTimeLocal"]) < now.replace(hour=7, minute=45)]
 
 # === Compact Export
@@ -67,6 +75,13 @@ export = {
     "resting_hr": rhr.get("restingHeartRate", 0),
     "heart_rate_day": summarize_hr(hr_day),
     "heart_rate_sleep": summarize_hr(hr_sleep),
+    "stress": summarize_list_of_dicts(stress, "stressLevel"),
+    "calories": {
+        "total": calories.get("totalKilocalories", 0),
+        "active": calories.get("activeKilocalories", 0),
+        "bmr": calories.get("bmrKilocalories", 0)
+    },
+    "body_battery": summarize_list_of_dicts(body_battery, "batteryLevel"),
     "workouts": [
         {
             "name": a.get("activityName"),
@@ -86,7 +101,21 @@ export = {
 
 # === Save Compact File
 os.makedirs("garmin_export", exist_ok=True)
-with open("garmin_export/compact.json", "w") as f:
+compact_path = "garmin_export/compact.json"
+with open(compact_path, "w") as f:
     json.dump(export, f, indent=2)
 
 print("✅ Saved compact export to garmin_export/compact.json")
+
+# === Auto-Summarize via OpenAI
+summary_prompt = f"""Summarize the following Garmin health data for {date_str}.
+Highlight sleep quality, heart rate, stress, calories, and workouts. Be brief and helpful.
+\n\n{json.dumps(export, indent=2)}"""
+
+summary = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": summary_prompt}]
+)
+
+print("\n🧠 OpenAI Summary:\n")
+print(summary['choices'][0]['message']['content'])
