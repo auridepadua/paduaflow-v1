@@ -39,7 +39,7 @@ if is_blank:
 
 # === Print raw data for debug
 print("📦 Garmin Raw Export:")
-print(json.dumps(garmin_data, indent=2))
+print(json.dumps(clean_data(garmin_data), indent=2))
 
 # === Prepare prompt content
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -69,7 +69,7 @@ Be detailed on:
 - HRV if available
 
 Raw Garmin export:
-{json.dumps(garmin_data)}
+{json.dumps(clean_data(garmin_data))}
 """
 
 summary_response = client.chat.completions.create(
