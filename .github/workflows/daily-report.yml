@@ -1,3 +1,4 @@
+
 name: Garmin Summary Automation
 
 on:
@@ -25,14 +26,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dev dependencies
-        run: pip install -r requirements-dev.txt
-
       - name: Install dependencies
-        run: pip install garminconnect garth openai twilio
-      
-      - name: Export Garmin data
-        run: python garmin_export_all.py
+        run: pip install openai twilio
 
       - name: Load Garmin JSON summary
         run: python main.py
