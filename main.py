@@ -1,13 +1,13 @@
-from openai import OpenAI
-from twilio.rest import Client
-import json
 import os
+import json
+from twilio.rest import Client as TwilioClient
+from openai import OpenAI
 
-# === CONFIGURATION ===
+# === Config paths
 GARMIN_JSON_PATH = "garmin_export_all.json"
 
 # === OpenAI Setup ===
-openai.api_key = os.environ["OPENAI_API_KEY"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 # === Twilio Setup ===
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
