@@ -1,4 +1,4 @@
-name: Garmin Export Debug
+name: Debug Garmin Export
 
 on:
   workflow_dispatch:  # Manual trigger
@@ -10,6 +10,8 @@ jobs:
     env:
       GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
       GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+      OAUTH1_TOKEN_B64: ${{ secrets.OAUTH1_TOKEN_B64 }}
+      OAUTH2_TOKEN_B64: ${{ secrets.OAUTH2_TOKEN_B64 }}
 
     steps:
       - name: Checkout repo
@@ -20,23 +22,30 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Create Garmin token directory
+        run: |
+          mkdir -p ~/.garminconnect
+          echo "$OAUTH1_TOKEN_B64" | base64 --decode > ~/.garminconnect/oauth1_token.json
+          echo "$OAUTH2_TOKEN_B64" | base64 --decode > ~/.garminconnect/oauth2_token.json
+
       - name: Install dependencies
         run: |
-          pip install -r requirements-dev.txt -r requirements-test.txt
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            echo "⚠️ No requirements file found, installing manually"
+            pip install garth garminconnect openai twilio
+          fi
 
-      - name: Create Garmin token directory
-        run: mkdir -p /home/runner/.garminconnect
-
-      - name: Decode Garmin OAuth tokens
+      - name: Run Garmin Export for today
         run: |
-          echo "${{ secrets.GARMIN_OAUTH1_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
-          echo "${{ secrets.GARMIN_OAUTH2_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
+          today=$(date +%F)
+          python garmin_export_all.py "$today"
 
-      - name: Run export for today
-        run: python garmin_export_all.py $(date '+%Y-%m-%d')
-
-      - name: Show Garmin JSON output
+      - name: Show Garmin export output
         run: |
-          echo "✅ Garmin JSON Export:"
-          ls -lah garmin_export/
-          cat garmin_export/*.json
+          today=$(date +%F)
+          echo "📦 Garmin JSON for $today"
+          cat "garmin_export/$today.json"
