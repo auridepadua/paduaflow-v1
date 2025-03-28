@@ -86,7 +86,8 @@ You're my personal coach. Based on the data below, give me a short WhatsApp-styl
 
 Garmin key data:
 {json.dumps(summary_data, indent=2)}
-"""
+
+{recovery_trend}
 
 # === OpenAI Client
 client = OpenAI(api_key=OPENAI_API_KEY)
