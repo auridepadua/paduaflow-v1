@@ -2,6 +2,7 @@ from garminconnect import Garmin
 from datetime import datetime, timedelta
 import json
 import os
+import statistics
 
 # === Auth
 TOKENSTORE = os.path.expanduser("~/.garminconnect")
@@ -23,6 +24,20 @@ def try_fetch(fetcher, fallback):
         print(f"⚠️ Could not fetch {fetcher.__name__}: {e}")
         return fallback
 
+# === Helpers
+def average_movement(movements):
+    if not movements:
+        return 0
+    return round(statistics.mean([m.get("activityLevel", 0) for m in movements]), 2)
+
+def summarize_hr(hr_list):
+    values = [v[1] for v in hr_list if isinstance(v, list) and len(v) == 2]
+    return {
+        "min": min(values) if values else 0,
+        "max": max(values) if values else 0,
+        "avg": round(statistics.mean(values), 2) if values else 0
+    }
+
 # === Data collectors
 steps_data = try_fetch(lambda: client.get_steps_data(date_str), [])
 sleep_data = try_fetch(lambda: client.get_sleep_data(date_str), {})
@@ -40,7 +55,7 @@ spo2_data = try_fetch(lambda: client.get_spo2_data(date_str), {})
 calories_data = try_fetch(lambda: client.get_stats(date_str), {})
 today_activities = try_fetch(lambda: client.get_activities_by_date(now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")), [])
 
-# === Filter any activity that started before 07:45 AM today
+# === Filter early activities
 early_activities = [
     act for act in today_activities
     if act.get("startTimeLocal") and datetime.fromisoformat(act["startTimeLocal"]) < now.replace(hour=7, minute=45)
@@ -53,7 +68,11 @@ export = {
         "totalSteps": steps_data[0].get("steps", 0) if steps_data else 0,
         "dailyStepGoal": steps_data[0].get("dailyStepGoal", 10000) if steps_data else 10000
     },
-    "sleep": sleep_data,
+    "sleep": {
+        "dailySleepDTO": sleep_data.get("dailySleepDTO", {}),
+        "sleepMovementAvg": average_movement(sleep_data.get("sleepMovement", [])),
+        "sleepHeartRateSummary": summarize_hr(sleep_data.get("sleepHeartRate", []))
+    },
     "rhr": {
         "restingHeartRate": rhr_data.get("restingHeartRate", 0)
     },
@@ -68,8 +87,8 @@ export = {
         }
         for act in activities
     ],
-    "heart_rate_day": heart_rates_day,
-    "heart_rate_sleep": heart_rates_sleep,
+    "heart_rate_day_summary": summarize_hr(heart_rates_day),
+    "heart_rate_sleep_summary": summarize_hr(heart_rates_sleep),
     "stress": stress_data,
     "respiration": respiration_data,
     "hydration": hydration_data,
