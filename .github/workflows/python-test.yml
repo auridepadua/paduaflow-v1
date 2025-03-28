@@ -23,6 +23,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: Check environment variables
+      run: |
+        if [ -n "$TWILIO_WHATSAPP_TO" ]; then
+          echo "TWILIO_WHATSAPP_TO is set"
+        else
+          echo "TWILIO_WHATSAPP_TO is NOT set"
+        fi
+        
     - name: Run tests
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
