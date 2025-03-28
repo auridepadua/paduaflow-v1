@@ -1,133 +1,92 @@
 from garminconnect import Garmin
 from datetime import datetime, timedelta
-import json
-import os
-import statistics
+import json, os, statistics
 
 # === Auth
 TOKENSTORE = os.path.expanduser("~/.garminconnect")
 client = Garmin()
 client.login(tokenstore=TOKENSTORE)
 
-# === Define Dates
+# === Date Setup
 now = datetime.now()
 yesterday = now - timedelta(days=1)
 date_str = yesterday.strftime("%Y-%m-%d")
-sleep_start = (yesterday.replace(hour=20, minute=0)).isoformat()
+sleep_start = yesterday.replace(hour=20).isoformat()
 sleep_end = now.isoformat()
 
-# === Safe fetch wrapper
-def try_fetch(fetcher, fallback):
+# === Safe Fetch Helper
+def safe(fetch_func, default):
     try:
-        return fetcher()
+        return fetch_func()
     except Exception as e:
-        print(f"⚠️ Could not fetch {fetcher.__name__}: {e}")
-        return fallback
-        
-def summarize_sleep_movement(sleep_movement_data):
-    if not sleep_movement_data:
-        return {"min": None, "max": None, "average": None}
+        print(f"⚠️ {fetch_func.__name__} failed: {e}")
+        return default
 
-    activity_levels = [entry["activityLevel"] for entry in sleep_movement_data if "activityLevel" in entry]
+# === Summarizers
+def summarize_list_of_dicts(data, key):
+    values = [d.get(key) for d in data if d.get(key) is not None]
     return {
-        "min": round(min(activity_levels), 2),
-        "max": round(max(activity_levels), 2),
-        "average": round(sum(activity_levels) / len(activity_levels), 2)
-    }
-    
-# === Helpers
-def average_movement(movements):
-    if not movements:
-        return 0
-    return round(statistics.mean([m.get("activityLevel", 0) for m in movements]), 2)
-
-def summarize_heart_rate(raw_values):
-    if not raw_values:
-        return {"min": None, "max": None, "average": None}
-
-    bpm_values = [val[1] for val in raw_values if isinstance(val, list) and len(val) == 2]
-    return {
-        "min": min(bpm_values),
-        "max": max(bpm_values),
-        "average": round(sum(bpm_values) / len(bpm_values), 1)
+        "min": min(values, default=0),
+        "max": max(values, default=0),
+        "average": round(statistics.mean(values), 2) if values else 0
     }
 
 def summarize_hr(hr_list):
     values = [v[1] for v in hr_list if isinstance(v, list) and len(v) == 2]
     return {
-        "min": min(values) if values else 0,
-        "max": max(values) if values else 0,
+        "min": min(values, default=0),
+        "max": max(values, default=0),
         "avg": round(statistics.mean(values), 2) if values else 0
     }
 
-# === Data collectors
-steps_data = try_fetch(lambda: client.get_steps_data(date_str), [])
-sleep_data = try_fetch(lambda: client.get_sleep_data(date_str), {})
-rhr_data = try_fetch(lambda: client.get_rhr_day(date_str), {})
-body_battery_data = try_fetch(lambda: client.get_body_battery(date_str), [])
-activities = try_fetch(lambda: client.get_activities_by_date(date_str, date_str), [])
+# === Fetch Core Data
+steps = safe(lambda: client.get_steps_data(date_str), [])
+sleep = safe(lambda: client.get_sleep_data(date_str), {})
+rhr = safe(lambda: client.get_rhr_day(date_str), {})
+hr_day = safe(lambda: client.get_heart_rates(date_str), [])
+hr_sleep = safe(lambda: client.get_heart_rates(sleep_start, sleep_end), [])
+activities = safe(lambda: client.get_activities_by_date(date_str, date_str), [])
 
-heart_rates_day = try_fetch(lambda: client.get_heart_rates(date_str), [])
-heart_rates_sleep = try_fetch(lambda: client.get_heart_rates(sleep_start, sleep_end), [])
-stress_data = try_fetch(lambda: client.get_stress_data(date_str), [])
-respiration_data = try_fetch(lambda: client.get_respiration_data(date_str), [])
-hydration_data = try_fetch(lambda: client.get_hydration_data(date_str), {})
-training_readiness = try_fetch(lambda: client.get_training_readiness(date_str), {})
-spo2_data = try_fetch(lambda: client.get_spo2_data(date_str), {})
-calories_data = try_fetch(lambda: client.get_stats(date_str), {})
-today_activities = try_fetch(lambda: client.get_activities_by_date(now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")), [])
+# === Filter morning activities today
+today_acts = safe(lambda: client.get_activities_by_date(now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")), [])
+early_today = [a for a in today_acts if a.get("startTimeLocal") and datetime.fromisoformat(a["startTimeLocal"]) < now.replace(hour=7, minute=45)]
 
-# === Filter early activities
-early_activities = [
-    act for act in today_activities
-    if act.get("startTimeLocal") and datetime.fromisoformat(act["startTimeLocal"]) < now.replace(hour=7, minute=45)
-]
-
-# === Final JSON export
+# === Compact Export
 export = {
     "date": date_str,
     "steps": {
-        "totalSteps": steps_data[0].get("steps", 0) if steps_data else 0,
-        "dailyStepGoal": steps_data[0].get("dailyStepGoal", 10000) if steps_data else 10000
+        "total": steps[0].get("steps", 0) if steps else 0,
+        "goal": steps[0].get("dailyStepGoal", 10000) if steps else 10000
     },
-    "sleep": {
-        "dailySleepDTO": sleep_data.get("dailySleepDTO", {}),
-        "sleep_movement": summarize_sleep_movement(raw_data["sleepMovement"]),
-        "sleepHeartRateSummary": summarize_hr(sleep_data.get("sleepHeartRate", []))
+    "sleep_summary": {
+        "duration": sleep.get("dailySleepDTO", {}).get("durationInSeconds", 0),
+        "efficiency": sleep.get("dailySleepDTO", {}).get("sleepEfficiency", 0),
+        "hr_summary": summarize_hr(sleep.get("sleepHeartRate", [])),
+        "movement_summary": summarize_list_of_dicts(sleep.get("sleepMovement", []), "activityLevel")
     },
-    "rhr": {
-        "restingHeartRate": rhr_data.get("restingHeartRate", 0)
-    },
-    "body_battery": body_battery_data,
-    "workout": [
+    "resting_hr": rhr.get("restingHeartRate", 0),
+    "heart_rate_day": summarize_hr(hr_day),
+    "heart_rate_sleep": summarize_hr(hr_sleep),
+    "workouts": [
         {
-            "activityName": act.get("activityName"),
-            "startTimeLocal": act.get("startTimeLocal"),
-            "duration": act.get("duration"),
-            "distance": act.get("distance"),
-            "calories": act.get("calories")
-        }
-        for act in activities
+            "name": a.get("activityName"),
+            "duration_min": round(a.get("duration", 0) / 60, 1),
+            "calories": a.get("calories"),
+            "distance_km": round(a.get("distance", 0) / 1000, 2)
+        } for a in activities
     ],
-    "heart_rate_day": summarize_heart_rate(heart_rates_day),,
-    "heart_rate_sleep_summary": summarize_hr(heart_rates_sleep),
-    "stress": stress_data,
-    "respiration": respiration_data,
-    "hydration": hydration_data,
-    "spo2": spo2_data,
-    "training_readiness": training_readiness,
-    "calories": calories_data,
-    "early_activities_today": early_activities
+    "early_workouts_today": [
+        {
+            "name": a.get("activityName"),
+            "start": a.get("startTimeLocal"),
+            "duration_min": round(a.get("duration", 0) / 60, 1)
+        } for a in early_today
+    ]
 }
 
-# === Save to file
+# === Save Compact File
 os.makedirs("garmin_export", exist_ok=True)
-with open("garmin_export_all.json", "w") as f:
+with open("garmin_export/compact.json", "w") as f:
     json.dump(export, f, indent=2)
 
-per_day_file = f"garmin_export/{date_str}.json"
-with open(per_day_file, "w") as f:
-    json.dump(export, f, indent=2)
-
-print(f"✅ Full Garmin data exported to garmin_export_all.json for {date_str}")
-print(f"✅ Per-day file also saved to {per_day_file}")
+print("✅ Saved compact export to garmin_export/compact.json")
