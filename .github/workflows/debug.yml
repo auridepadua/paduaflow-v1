@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt -r requirements-test.txt
 
       - name: Create Garmin token directory
         run: mkdir -p /home/runner/.garminconnect
