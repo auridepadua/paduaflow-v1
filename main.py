@@ -3,99 +3,79 @@ import json
 from openai import OpenAI
 from twilio.rest import Client as TwilioClient
 
-# === Helper to clean null/empty data ===
-def clean_data(obj):
-    if isinstance(obj, dict):
-        return {
-            k: clean_data(v)
-            for k, v in obj.items()
-            if v not in (None, [], {}, "") and clean_data(v) not in (None, [], {}, "")
-        }
-    elif isinstance(obj, list):
-        return [clean_data(i) for i in obj if i not in (None, [], {}, "")]
-    else:
-        return obj
-
-# === Environment variables
+# === Environment Variables ===
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_WHATSAPP_FROM = os.environ["TWILIO_WHATSAPP_FROM"]
 TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
 
-# === Load Garmin data
-with open("garmin_export_all.json", "r") as f:
-    garmin_data = json.load(f)
+# === File Paths ===
+COMPACT_PATH = "garmin_export/compact.json"
 
-# === Check for blank data
-sleep_data = garmin_data.get("sleep", {}).get("dailySleepDTO", {})
-steps_data = garmin_data.get("steps", {})
-rhr_data = garmin_data.get("rhr", {})
+# === Load Garmin Compact JSON ===
+if not os.path.exists(COMPACT_PATH):
+    raise FileNotFoundError("❌ compact.json not found. Run garmin_export_full.py first.")
 
-is_blank = not sleep_data and not steps_data.get("totalSteps") and not rhr_data.get("restingHeartRate")
+with open(COMPACT_PATH, "r") as f:
+    data = json.load(f)
 
-if is_blank:
+# === Validate Key Garmin Data ===
+sleep_summary = data.get("sleep_summary", {})
+steps_data = data.get("steps", {})
+rhr_value = data.get("resting_hr", None)
+
+if not sleep_summary and not steps_data.get("total") and not rhr_value:
     error_message = (
-        "⚠️ Garmin data appears to be missing or not synced.\n\n"
-        "Please open your Garmin app and make sure your device has synced for the latest day."
+        "⚠️ Garmin data is missing or not synced.\n\n"
+        "Please open your Garmin app and ensure your watch synced for the latest day."
     )
     print(error_message)
 
-    # Optional: Send WhatsApp error message
+    # Notify via WhatsApp
     twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     twilio.messages.create(
         body=error_message,
         from_=TWILIO_WHATSAPP_FROM,
         to=TWILIO_WHATSAPP_TO
     )
-    exit("❌ Garmin data is blank — exiting early.")
+    exit("❌ Exiting due to missing Garmin data.")
 
-# === OpenAI Client
+# === OpenAI Client Setup ===
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# === Create trimmed Garmin payload for summarization
-summary_payload = {
-    "date": garmin_data.get("date"),
-    "steps": garmin_data.get("steps"),
-    "sleep": garmin_data.get("sleep"),
-    "rhr": garmin_data.get("rhr"),
-    "body_battery": garmin_data.get("body_battery"),
-    "workout": garmin_data.get("workout"),
-    "heart_rate": garmin_data.get("heart_rate"),
-    "stress": garmin_data.get("stress"),
-    "respiration": garmin_data.get("respiration"),
-    "hydration": garmin_data.get("hydration"),
-    "spo2": garmin_data.get("spo2"),
-    "training_readiness": garmin_data.get("training_readiness"),
-    "calories": garmin_data.get("calories")
-}
-
-# === Load compact file (already summarized)
-with open("garmin_export/compact.json") as f:
-    summarized_data = json.load(f)
-
-# === Build prompt with only essential summary data
-summary_prompt = f"""Summarize the following Garmin health data for {summarized_data['date']}:
+# === Summarize Garmin Data ===
+summary_prompt = f"""Summarize the following Garmin health data for {data['date']}:
 - Sleep duration and quality
 - Resting heart rate
 - Stress and body battery levels
 - Calories spent
 - Workout activity insights
 
-Answer in a brief, helpful tone.\n\nData:\n{json.dumps(summarized_data)}"""
+Be brief, insightful, and helpful.
 
-# === Send to OpenAI
-summary_response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": summary_prompt}]
-)
+Garmin Data:
+{json.dumps(data)}"""
+
+try:
+    summary_response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": summary_prompt}]
+    )
+    summary = summary_response.choices[0].message.content.strip()
+except Exception as e:
+    print(f"❌ OpenAI summarization failed: {e}")
+    exit(1)
+
+# === Save OpenAI Summary to File ===
+summary_path = f"garmin_export/summary_{data['date']}.txt"
+with open(summary_path, "w") as f:
+    f.write(summary)
 
 print("\n🧠 OpenAI Summary:\n")
-print(summary_response['choices'][0]['message']['content'])
+print(summary)
 
-summary = summary_response.choices[0].message.content.strip()
-
-# === Step 2: Generate WhatsApp-style coaching using GPT-4
+# === Coaching Message (GPT-4) ===
 insight_prompt = f"""
 You're my pro personal coach. Based on this Garmin data summary, write a short WhatsApp-style message.
 
@@ -111,19 +91,22 @@ Garmin summary:
 {summary}
 """
 
-insight_response = client.chat.completions.create(
-    model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You the most performance-driven sprinting coach."},
-        {"role": "user", "content": insight_prompt}
-    ],
-    temperature=0.6,
-    max_tokens=300
-)
+try:
+    insight_response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are the most performance-driven sprinting coach."},
+            {"role": "user", "content": insight_prompt}
+        ],
+        temperature=0.6,
+        max_tokens=300
+    )
+    message_body = insight_response.choices[0].message.content.strip()
+except Exception as e:
+    print(f"❌ GPT-4 coaching generation failed: {e}")
+    exit(1)
 
-message_body = insight_response.choices[0].message.content.strip()
-
-# === Send WhatsApp message
+# === Send WhatsApp Coaching Message ===
 twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 twilio.messages.create(
     body=message_body,
@@ -131,4 +114,5 @@ twilio.messages.create(
     to=TWILIO_WHATSAPP_TO
 )
 
-print("✅ Summary sent to WhatsApp!")
+print("\n✅ WhatsApp message sent!\n")
+print(message_body)
