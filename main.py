@@ -20,6 +20,9 @@ try:
         previous_data = json.load(f)
 except FileNotFoundError:
     previous_data = None
+
+print("📦 Full Garmin data:")
+print(json.dumps(garmin_data, indent=2))
     
 # === Prepare required data variables before use
 steps_data = garmin_data.get("steps", {})
@@ -84,8 +87,8 @@ You're my personal coach. Based on the data below, give me a short WhatsApp-styl
 - Recommend type of trainingn (strentgh or sprinting) I should train PM based on recovery, sleep, stress
 - Be fierce and motivating
 
-Garmin key data:
-{json.dumps(summary_data, indent=2)}
+Full Garmin export JSON:
+{json.dumps(garmin_data, indent=2)}
 
 {recovery_trend}
 """
