@@ -1,32 +1,33 @@
-name: Garmin Summary Automation
+name: Daily Garmin Report
 
 on:
   schedule:
-    - cron: '45 10 * * *'  # Runs daily at 7:45 AM BRT (10:45 UTC)
-  workflow_dispatch:
+    - cron: '0 6 * * *'  # Runs at 6:00 AM UTC daily
+  workflow_dispatch:      # Allows manual trigger
 
 jobs:
-  summarize:
+  generate-report:
     runs-on: ubuntu-latest
 
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-      TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
-      TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install openai twilio
-
-      - name: Load Garmin JSON summary
-        run: python main.py
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run daily report
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+        TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
+      run: |
+        python main.py
