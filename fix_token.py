@@ -4,8 +4,8 @@ import base64
 # Paths
 HOME = os.path.expanduser("~")
 TOKEN_DIR = os.path.join(HOME, ".garminconnect")
-OAUTH1_PATH = os.path.join(TOKEN_DIR, "oauth1_token.json")
-OAUTH2_PATH = os.path.join(TOKEN_DIR, "oauth2_token.json")
+oauth1_b64 = os.environ.get("GARMIN_OAUTH1_B64")
+oauth2_b64 = os.environ.get("GARMIN_OAUTH2_B64")
 
 # Read from environment secrets
 oauth1_b64 = os.environ.get("OAUTH1_B64")
