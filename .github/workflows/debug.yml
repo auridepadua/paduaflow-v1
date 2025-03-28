@@ -1,0 +1,42 @@
+name: Garmin Export Debug
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    env:
+      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Create Garmin token directory
+        run: mkdir -p /home/runner/.garminconnect
+
+      - name: Decode Garmin OAuth tokens
+        run: |
+          echo "${{ secrets.GARMIN_OAUTH1_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
+          echo "${{ secrets.GARMIN_OAUTH2_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
+
+      - name: Run export for today
+        run: python garmin_export_all.py $(date '+%Y-%m-%d')
+
+      - name: Show Garmin JSON output
+        run: |
+          echo "✅ Garmin JSON Export:"
+          ls -lah garmin_export/
+          cat garmin_export/*.json
