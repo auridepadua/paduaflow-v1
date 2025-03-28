@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Export Garmin data
+        run: python garmin_export_full.py
+  
       - name: Install dependencies
         run: pip install openai twilio
 
