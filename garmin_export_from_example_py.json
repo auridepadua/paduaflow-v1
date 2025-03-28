@@ -1,0 +1,72 @@
+{
+  "steps": {
+    "totalSteps": 0,
+    "dailyStepGoal": 10000
+  },
+  "sleep": {
+    "sleepTimeSeconds": 0,
+    "deepSleepSeconds": 0,
+    "lightSleepSeconds": 0,
+    "remSleepSeconds": 0,
+    "awakeSleepSeconds": 0
+  },
+  "rhr": {
+    "restingHeartRate": 0
+  },
+  "body_battery": [
+    {
+      "date": "2025-03-27",
+      "charged": null,
+      "drained": null,
+      "startTimestampGMT": "2025-03-27T03:00:00.0",
+      "endTimestampGMT": "2025-03-28T03:00:00.0",
+      "startTimestampLocal": "2025-03-27T00:00:00.0",
+      "endTimestampLocal": "2025-03-28T00:00:00.0",
+      "bodyBatteryValuesArray": [
+        [
+          1743033600001,
+          null
+        ],
+        [
+          1743033600002,
+          null
+        ],
+        [
+          1743033600003,
+          null
+        ],
+        [
+          1743033600004,
+          null
+        ],
+        [
+          1743033600005,
+          null
+        ],
+        [
+          1743033600006,
+          null
+        ]
+      ],
+      "bodyBatteryValueDescriptorDTOList": [
+        {
+          "bodyBatteryValueDescriptorIndex": 0,
+          "bodyBatteryValueDescriptorKey": "timestamp"
+        },
+        {
+          "bodyBatteryValueDescriptorIndex": 1,
+          "bodyBatteryValueDescriptorKey": "bodyBatteryLevel"
+        }
+      ]
+    }
+  ],
+  "workout": [
+    {
+      "activityName": "Other",
+      "startTimeLocal": "2025-03-27 05:54:30",
+      "duration": 3148.7890625,
+      "distance": 0.0,
+      "calories": 219.0
+    }
+  ]
+}
