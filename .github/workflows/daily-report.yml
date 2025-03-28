@@ -1,16 +1,16 @@
-
-name: Garmin Summary Automation
+name: Daily Garmin Summary
 
 on:
   schedule:
-    - cron: '45 10 * * *'  # Runs daily at 7:45 AM BRT (10:45 UTC)
+    - cron: "45 10 * * *" # 7:45AM BRT = 10:45 UTC
   workflow_dispatch:
 
 jobs:
-  summarize:
+  daily:
     runs-on: ubuntu-latest
-
     env:
+      GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
       TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
@@ -24,10 +24,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install openai twilio
+        run: pip install -r requirements.txt -r requirements-dev.txt -r requirements-test.txt
 
-      - name: Load Garmin JSON summary
+      - name: Run Garmin export
+        run: python garmin_export_all.py
+
+      - name: Run OpenAI + Twilio summary
         run: python main.py
