@@ -27,19 +27,23 @@ calories = garmin_data.get("calories", {})
 # === Build a short summary for the prompt
 summary_data = {
     "date": date,
-    "steps": steps,
+    "steps": steps_data,
     "sleep": {
-        "sleepTimeSeconds": sleep.get("sleepTimeSeconds"),
-        "deepSleepSeconds": sleep.get("deepSleepSeconds"),
-        "lightSleepSeconds": sleep.get("lightSleepSeconds"),
-        "awakeSleepSeconds": sleep.get("awakeSleepSeconds")
+        "sleepTimeSeconds": sleep_data.get("sleepTimeSeconds"),
+        "deepSleepSeconds": sleep_data.get("deepSleepSeconds"),
+        "lightSleepSeconds": sleep_data.get("lightSleepSeconds"),
+        "awakeSleepSeconds": sleep_data.get("awakeSleepSeconds")
     },
-    "restingHeartRate": hrv.get("restingHeartRate"),
+    "restingHeartRate": rhr_data.get("restingHeartRate"),
     "stressSamples": len(stress),
     "trainingReadinessScore": readiness[0].get("trainingReadinessScore") if isinstance(readiness, list) and readiness else None,
     "activities": activities,
     "calories": calories.get("totalKilocalories", 0)
 }
+
+# === DEBUG: print data going into OpenAI
+print("\n📦 Summary data sent to OpenAI:")
+print(json.dumps(summary_data, indent=2))
 
 # === Prompt for OpenAI
 prompt = f"""
