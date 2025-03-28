@@ -65,8 +65,8 @@ twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 message = twilio.messages.create(
     body=summary,
-    from_=FROM_WHATSAPP,
-    to=TO_WHATSAPP
+    from_=TWILIO_WHATSAPP_FROM,
+    to=TWILIO_WHATSAPP_TO
 )
 
 print(f"✅ WhatsApp message sent! SID: {message.sid}")
