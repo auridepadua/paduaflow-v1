@@ -3,6 +3,19 @@ import json
 from openai import OpenAI
 from twilio.rest import Client as TwilioClient
 
+# === Helper to clean null/empty data ===
+def clean_data(obj):
+    if isinstance(obj, dict):
+        return {
+            k: clean_data(v)
+            for k, v in obj.items()
+            if v not in (None, [], {}, "") and clean_data(v) not in (None, [], {}, "")
+        }
+    elif isinstance(obj, list):
+        return [clean_data(i) for i in obj if i not in (None, [], {}, "")]
+    else:
+        return obj
+        
 # === Environment variables
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
@@ -44,19 +57,6 @@ print(json.dumps(clean_data(garmin_data), indent=2))
 # === Prepare prompt content
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# === Helper to clean null/empty data ===
-def clean_data(obj):
-    if isinstance(obj, dict):
-        return {
-            k: clean_data(v)
-            for k, v in obj.items()
-            if v not in (None, [], {}, "") and clean_data(v) not in (None, [], {}, "")
-        }
-    elif isinstance(obj, list):
-        return [clean_data(i) for i in obj if i not in (None, [], {}, "")]
-    else:
-        return obj
-        
 # === Step 1: Summarize full raw Garmin data with GPT-3.5
 summary_prompt = f"""
 You're a personal health assistant. Summarize the user's Garmin data into key highlights.
