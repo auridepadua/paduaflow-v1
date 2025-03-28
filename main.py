@@ -36,7 +36,7 @@ summary_data = {
     },
     "restingHeartRate": hrv.get("restingHeartRate"),
     "stressSamples": len(stress),
-    "trainingReadinessScore": readiness.get("trainingReadinessScore"),
+    "trainingReadinessScore": readiness[0].get("trainingReadinessScore") if isinstance(readiness, list) and readiness else None,
     "activities": activities,
     "calories": calories.get("totalKilocalories", 0)
 }
