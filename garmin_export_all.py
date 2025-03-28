@@ -92,7 +92,7 @@ export = {
     },
     "sleep": {
         "dailySleepDTO": sleep_data.get("dailySleepDTO", {}),
-        "sleepMovementAvg": average_movement(sleep_data.get("sleepMovement", [])),
+        "sleep_movement": summarize_sleep_movement(raw_data["sleepMovement"]),
         "sleepHeartRateSummary": summarize_hr(sleep_data.get("sleepHeartRate", []))
     },
     "rhr": {
