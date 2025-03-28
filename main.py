@@ -86,5 +86,8 @@ twilio.messages.create(
     from_=TWILIO_WHATSAPP_FROM,
     to=TWILIO_WHATSAPP_TO
 )
-
 print("✅ Summary sent to WhatsApp!")
+
+# === Save context for tomorrow's comparison
+with open("context_last_day.json", "w") as f:
+    json.dump(summary_data, f, indent=2)
