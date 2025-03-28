@@ -44,7 +44,7 @@ Today's sleep (in seconds):
 
 Resting HR: {today_data['rhr'].get("restingHeartRate", "N/A")}
 Steps: {today_data['steps'].get("totalSteps", 0)}
-Training Readiness Score: {today_data.get("training_readiness", {}).get("trainingReadinessScore", "N/A")}
+Training Readiness Score: {today_data.get("training_readiness", [{}])[0].get("trainingReadinessScore", "N/A")}
 
 Calories: {today_data.get("calories", {}).get("totalKilocalories", "N/A")}
 
