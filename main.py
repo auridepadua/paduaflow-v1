@@ -15,7 +15,7 @@ def clean_data(obj):
         return [clean_data(i) for i in obj if i not in (None, [], {}, "")]
     else:
         return obj
-        
+
 # === Environment variables
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
@@ -50,14 +50,14 @@ if is_blank:
     )
     exit("❌ Garmin data is blank — exiting early.")
 
-# === Print raw data for debug
+# === Print raw cleaned data for debug
 print("📦 Garmin Raw Export:")
 print(json.dumps(clean_data(garmin_data), indent=2))
 
-# === Prepare prompt content
+# === OpenAI Client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# === Step 1: Summarize full raw Garmin data with GPT-3.5
+# === Step 1: Summarize Garmin data with GPT-3.5
 summary_prompt = f"""
 You're a personal health assistant. Summarize the user's Garmin data into key highlights.
 
@@ -75,7 +75,7 @@ Raw Garmin export:
 summary_response = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
-        {"role": "system", "content": "You are a Garmin data analyst."},
+        {"role": "system", "content": "You the most performance-driven sprinting coach."},
         {"role": "user", "content": summary_prompt}
     ],
     temperature=0.4,
@@ -84,17 +84,17 @@ summary_response = client.chat.completions.create(
 
 summary = summary_response.choices[0].message.content.strip()
 
-# === Step 2: Use GPT-4 to deliver concise WhatsApp coaching
+# === Step 2: Generate WhatsApp-style coaching using GPT-4
 insight_prompt = f"""
-You're my personal coach. Based on this Garmin data summary, write a short WhatsApp-style message.
+You're my pro personal coach. Based on this Garmin data summary, write a short WhatsApp-style message.
 
 Rules:
 - Start with: "Hello Aurelio 👋"
-- Focus on recovery, sleep, HR trends.
-- Give actionable advice in 2–3 sentences max.
-- Suggest if I should train PM.
-- Add a simple diet tip for the day.
-- Keep it friendly and motivating.
+- Focus on recovery, sleep, and heart rate
+- Give actionable advice in 2–3 sentences max
+- Suggest if I should train PM today
+- Add a short diet tip
+- Keep it fierce and strong
 
 Garmin summary:
 {summary}
@@ -103,7 +103,7 @@ Garmin summary:
 insight_response = client.chat.completions.create(
     model="gpt-4",
     messages=[
-        {"role": "system", "content": "You're a performance and health coach."},
+        {"role": "system", "content": "You the most performance-driven sprinting coach."},
         {"role": "user", "content": insight_prompt}
     ],
     temperature=0.6,
@@ -112,7 +112,7 @@ insight_response = client.chat.completions.create(
 
 message_body = insight_response.choices[0].message.content.strip()
 
-# === Twilio WhatsApp
+# === Send WhatsApp message
 twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 twilio.messages.create(
     body=message_body,
