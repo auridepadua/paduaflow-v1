@@ -11,13 +11,13 @@ jobs:
     env:
       GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
       GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+      GARMIN_OAUTH1_B64: ${{ secrets.GARMIN_OAUTH1_B64 }}
+      GARMIN_OAUTH2_B64: ${{ secrets.GARMIN_OAUTH2_B64 }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
       TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
       TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
       TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
-      OAUTH1_B64: ${{ secrets.OAUTH1_B64 }}
-      OAUTH2_B64: ${{ secrets.OAUTH2_B64 }}
 
     steps:
       - name: Checkout repository
@@ -31,9 +31,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt -r requirements-test.txt
 
-      - name: Restore Garmin OAuth Tokens
+      - name: Decode and write Garmin tokens
         run: python fix_token.py
-        
+
       - name: Run Garmin export
         run: python garmin_export_all.py
 
