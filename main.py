@@ -1,118 +1,109 @@
 import os
 import json
+from datetime import datetime, timedelta
+from garminconnect import Garmin
 from openai import OpenAI
-from twilio.rest import Client as TwilioClient
+from twilio.rest import Client
+from dotenv import load_dotenv
 
-# === Environment Variables ===
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
-TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
-TWILIO_WHATSAPP_FROM = os.environ["TWILIO_WHATSAPP_FROM"]
-TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
+# === Load environment variables
+load_dotenv()
 
-# === File Paths ===
-COMPACT_PATH = "garmin_export/compact.json"
+# === Setup Garmin auth
+TOKENSTORE = os.path.expanduser("~/.garminconnect")
+client = Garmin()
+client.login(tokenstore=TOKENSTORE)
 
-# === Load Garmin Compact JSON ===
-if not os.path.exists(COMPACT_PATH):
-    raise FileNotFoundError("❌ compact.json not found. Run garmin_export_full.py first.")
+# === Set target date (yesterday in São Paulo time)
+now = datetime.now()
+target_day = now - timedelta(days=1)
+date_str = target_day.strftime("%Y-%m-%d")
 
-with open(COMPACT_PATH, "r") as f:
-    data = json.load(f)
+# === Fetch helpers
+def try_fetch(fetcher, fallback):
+    try:
+        return fetcher()
+    except Exception as e:
+        print(f"⚠️  Could not fetch {fetcher.__name__}: {e}")
+        return fallback
 
-# === Validate Key Garmin Data ===
-sleep_summary = data.get("sleep_summary", {})
-steps_data = data.get("steps", {})
-rhr_value = data.get("resting_hr", None)
+# === Gather data
+steps = try_fetch(lambda: client.get_steps_data(date_str), [])
+sleep = try_fetch(lambda: client.get_sleep_data(date_str), {})
+rhr = try_fetch(lambda: client.get_rhr_day(date_str), {})
+bb = try_fetch(lambda: client.get_body_battery(date_str), [])
+activity = try_fetch(lambda: client.get_activities(0, 1), [])
 
-if not sleep_summary and not steps_data.get("total") and not rhr_value:
-    error_message = (
-        "⚠️ Garmin data is missing or not synced.\n\n"
-        "Please open your Garmin app and ensure your watch synced for the latest day."
-    )
-    print(error_message)
+# === Structure export
+export = {
+    "steps": {
+        "totalSteps": steps[0].get("steps", 0) if steps else 0,
+        "dailyStepGoal": steps[0].get("dailyStepGoal", 10000) if steps else 10000
+    },
+    "sleep": {
+        "sleepTimeSeconds": sleep.get("sleepTimeSeconds", 0),
+        "deepSleepSeconds": sleep.get("deepSleepSeconds", 0),
+        "lightSleepSeconds": sleep.get("lightSleepSeconds", 0),
+        "remSleepSeconds": sleep.get("remSleepSeconds", 0),
+        "awakeSleepSeconds": sleep.get("awakeSleepSeconds", 0)
+    },
+    "rhr": {
+        "restingHeartRate": rhr.get("restingHeartRate", 0)
+    },
+    "body_battery": bb,
+    "workout": [
+        {
+            "activityName": act.get("activityName"),
+            "startTimeLocal": act.get("startTimeLocal"),
+            "duration": act.get("duration"),
+            "distance": act.get("distance"),
+            "calories": act.get("calories")
+        }
+        for act in activity
+    ]
+}
 
-    # Notify via WhatsApp
-    twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    twilio.messages.create(
-        body=error_message,
-        from_=TWILIO_WHATSAPP_FROM,
-        to=TWILIO_WHATSAPP_TO
-    )
-    exit("❌ Exiting due to missing Garmin data.")
+# === Save to JSON
+os.makedirs("garmin_export", exist_ok=True)
+export_path = f"garmin_export/garmin_export_all.json"
+with open(export_path, "w") as f:
+    json.dump(export, f, indent=2)
+print(f"✅ Garmin data exported to {export_path} for {date_str}")
 
-# === OpenAI Client Setup ===
-client = OpenAI(api_key=OPENAI_API_KEY)
+# === Ask OpenAI for summary
+openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+system_prompt = "You are a helpful wellness assistant generating daily summaries of health data for your user."
 
-# === Summarize Garmin Data ===
-summary_prompt = f"""Summarize the following Garmin health data for {data['date']}:
-- Sleep duration and quality
-- Resting heart rate
-- Stress and body battery levels
-- Calories spent
-- Workout activity insights
-
-Be brief, insightful, and helpful.
-
-Garmin Data:
-{json.dumps(data)}"""
-
-try:
-    summary_response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": summary_prompt}]
-    )
-    summary = summary_response.choices[0].message.content.strip()
-except Exception as e:
-    print(f"❌ OpenAI summarization failed: {e}")
-    exit(1)
-
-# === Save OpenAI Summary to File ===
-summary_path = f"garmin_export/summary_{data['date']}.txt"
-with open(summary_path, "w") as f:
-    f.write(summary)
-
-print("\n🧠 OpenAI Summary:\n")
-print(summary)
-
-# === Coaching Message (GPT-4) ===
-insight_prompt = f"""
-You're my pro personal coach. Based on this Garmin data summary, write a short WhatsApp-style message.
-
-Rules:
-- Start with: "Hello Aurelio 👋"
-- Focus on recovery, sleep, and heart rate
-- Give actionable advice in 2–3 sentences max
-- Suggest if I should train PM today
-- Add a short diet tip
-- Keep it fierce and strong
-
-Garmin summary:
-{summary}
+user_prompt = f"""
+Here is my wellness data for {date_str}. Give me a friendly summary in under 120 words.
+If steps are over 10k or workout is logged, acknowledge that positively.
+If resting heart rate is low (under 50), mention that.
+{json.dumps(export)}
 """
 
-try:
-    insight_response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are the most performance-driven sprinting coach."},
-            {"role": "user", "content": insight_prompt}
-        ],
-        temperature=0.6,
-        max_tokens=300
-    )
-    message_body = insight_response.choices[0].message.content.strip()
-except Exception as e:
-    print(f"❌ GPT-4 coaching generation failed: {e}")
-    exit(1)
-
-# === Send WhatsApp Coaching Message ===
-twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-twilio.messages.create(
-    body=message_body,
-    from_=TWILIO_WHATSAPP_FROM,
-    to=TWILIO_WHATSAPP_TO
+completion = openai.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
 )
 
-print("\n✅ WhatsApp message sent!\n")
-print(message_body)
+summary = completion.choices[0].message.content.strip()
+print(f"\n📄 OpenAI Summary:\n{summary}")
+
+# === Send WhatsApp message with Twilio
+twilio_sid = os.getenv("TWILIO_SID")
+twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
+twilio_from = os.getenv("TWILIO_FROM_NUMBER")
+twilio_to = os.getenv("TWILIO_TO_NUMBER")
+
+client_twilio = Client(twilio_sid, twilio_token)
+
+msg = client_twilio.messages.create(
+    from_=f"whatsapp:{twilio_from}",
+    to=f"whatsapp:{twilio_to}",
+    body=f"🧠 Wellness Summary for {date_str}:\n\n{summary}"
+)
+
+print(f"📬 Sent WhatsApp message to {twilio_to} with SID {msg.sid}")
