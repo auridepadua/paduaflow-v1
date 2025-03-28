@@ -12,8 +12,8 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 # === Twilio Setup ===
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
-FROM_WHATSAPP = os.environ["TWILIO_WHATSAPP_FROM"]
-TO_WHATSAPP = os.environ["TWILIO_WHATSAPP_TO"]
+TWILIO_WHATSAPP_FROM = os.environ["TWILIO_WHATSAPP_FROM"]
+TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
 
 # === Load Garmin JSON ===
 with open(GARMIN_JSON_PATH, "r") as f:
