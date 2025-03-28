@@ -4,36 +4,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  auth-check:
+  auth-test:
     runs-on: ubuntu-latest
+
+    env:
+      OAUTH1_B64: ${{ secrets.GARMIN_OAUTH1_B64 }}
+      OAUTH2_B64: ${{ secrets.GARMIN_OAUTH2_B64 }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Create token directory
-        run: mkdir -p /home/runner/.garminconnect
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Decode and write oauth1_token.json
+      - name: Create token files
         run: |
-          echo "${{ secrets.OAUTH1_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
-
-      - name: Decode and write oauth2_token.json
-        run: |
-          echo "${{ secrets.OAUTH2_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
+          mkdir -p ~/.garminconnect
+          echo "$OAUTH1_B64" | base64 -d > ~/.garminconnect/oauth1_token.json
+          echo "$OAUTH2_B64" | base64 -d > ~/.garminconnect/oauth2_token.json
 
       - name: Install dependencies
-        run: pip install -r requirements-test.txt
-
-      - name: Test Garmin authentication
         run: |
-          python3 -c "
-import os
-from garminconnect import (
-    Garmin,
-)
+          pip install -r requirements-dev.txt
 
-client = Garmin()
-client.login(tokenstore='/home/runner/.garminconnect')
-print('✅ Garmin authentication successful')
-"
+      - name: ✅ Run fix_token.py for Garmin Auth
+        run: |
+          python fix_token.py
