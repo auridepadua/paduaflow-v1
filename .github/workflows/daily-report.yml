@@ -32,7 +32,7 @@ jobs:
         run: pip install -r requirements-dev.txt -r requirements-test.txt
 
       - name: Restore Garmin OAuth Tokens
-        run: python scripts/fix_token.py
+        run: python fix_token.py
         
       - name: Run Garmin export
         run: python garmin_export_all.py
