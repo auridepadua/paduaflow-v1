@@ -23,7 +23,18 @@ def try_fetch(fetcher, fallback):
     except Exception as e:
         print(f"⚠️ Could not fetch {fetcher.__name__}: {e}")
         return fallback
+        
+def summarize_sleep_movement(sleep_movement_data):
+    if not sleep_movement_data:
+        return {"min": None, "max": None, "average": None}
 
+    activity_levels = [entry["activityLevel"] for entry in sleep_movement_data if "activityLevel" in entry]
+    return {
+        "min": round(min(activity_levels), 2),
+        "max": round(max(activity_levels), 2),
+        "average": round(sum(activity_levels) / len(activity_levels), 2)
+    }
+    
 # === Helpers
 def average_movement(movements):
     if not movements:
