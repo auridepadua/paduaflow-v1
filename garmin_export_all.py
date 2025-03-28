@@ -30,6 +30,17 @@ def average_movement(movements):
         return 0
     return round(statistics.mean([m.get("activityLevel", 0) for m in movements]), 2)
 
+def summarize_heart_rate(raw_values):
+    if not raw_values:
+        return {"min": None, "max": None, "average": None}
+
+    bpm_values = [val[1] for val in raw_values if isinstance(val, list) and len(val) == 2]
+    return {
+        "min": min(bpm_values),
+        "max": max(bpm_values),
+        "average": round(sum(bpm_values) / len(bpm_values), 1)
+    }
+
 def summarize_hr(hr_list):
     values = [v[1] for v in hr_list if isinstance(v, list) and len(v) == 2]
     return {
@@ -87,7 +98,7 @@ export = {
         }
         for act in activities
     ],
-    "heart_rate_day_summary": summarize_hr(heart_rates_day),
+    "heart_rate_day": summarize_heart_rate(heart_rates_day),,
     "heart_rate_sleep_summary": summarize_hr(heart_rates_sleep),
     "stress": stress_data,
     "respiration": respiration_data,
