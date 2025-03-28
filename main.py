@@ -53,6 +53,23 @@ summary_data = {
     "calories": calories.get("totalKilocalories", 0)
 }
 
+# === Optional comparison (trends)
+recovery_trend = ""
+if previous_data:
+    prev_rhr = previous_data.get("restingHeartRate", 0)
+    curr_rhr = summary_data.get("restingHeartRate", 0)
+    prev_sleep = previous_data.get("sleep", {}).get("sleepTimeSeconds", 0)
+    curr_sleep = summary_data.get("sleep", {}).get("sleepTimeSeconds", 0)
+
+    rhr_diff = curr_rhr - prev_rhr
+    sleep_diff = curr_sleep - prev_sleep
+
+    recovery_trend = f"""
+Recovery Trend:
+- Resting HR: {'↑' if rhr_diff > 0 else '↓'} {abs(rhr_diff)} bpm vs. yesterday
+- Sleep: {'↑' if sleep_diff > 0 else '↓'} {abs(sleep_diff // 60)} min vs. yesterday
+"""
+
 # === DEBUG: print data going into OpenAI
 print("\n📦 Summary data sent to OpenAI:")
 print(json.dumps(summary_data, indent=2))
