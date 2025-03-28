@@ -1,0 +1,39 @@
+name: Debug Garmin Export
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    env:
+      OAUTH1_B64: ${{ secrets.GARMIN_OAUTH1_B64 }}
+      OAUTH2_B64: ${{ secrets.GARMIN_OAUTH2_B64 }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Decode and fix token files
+        run: python fix_token.py
+
+      - name: Export Garmin data
+        run: |
+          today=$(date +%F)
+          echo "📦 Exporting Garmin data for $today"
+          python garmin_export_all.py $today
+
+      - name: ✅ Show part of Garmin JSON
+        run: |
+          today=$(date +%F)
+          echo "🔍 Garmin JSON Preview:"
+          head -n 40 garmin_export/$today.json || echo "❌ File not found or empty"
