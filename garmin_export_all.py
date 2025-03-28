@@ -68,5 +68,11 @@ export = {
 # === Save to file
 with open("garmin_export_all.json", "w") as f:
     json.dump(export, f, indent=2)
+    
+# Save to per-day file
+per_day_file = f"garmin_export/{export_date}.json"
+with open(per_day_file, "w") as f:
+    json.dump(data, f, indent=2)
 
 print(f"✅ Full Garmin data exported to garmin_export_all.json for {date_str}")
+print(f"✅ Per-day file also saved to {per_day_file}")
