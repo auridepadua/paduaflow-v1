@@ -1,47 +1,39 @@
-name: Export Garmin Data Debug
+name: Garmin Auth Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  export:
+  auth-check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dev dependencies
-        run: |
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            echo "❌ requirements-dev.txt not found"
-            exit 1
-          fi
-
-      - name: Create .garminconnect directory
+      - name: Create token directory
         run: mkdir -p /home/runner/.garminconnect
 
-      - name: Decode OAuth1 token
-        run: echo "${{ secrets.OAUTH1_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
-
-      - name: Decode OAuth2 token
-        run: echo "${{ secrets.OAUTH2_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
-
-      - name: Export Garmin data for today
+      - name: Decode and write oauth1_token.json
         run: |
-          today=$(date +%F)
-          echo "📦 Exporting Garmin data for $today"
-          python garmin_export_all.py $today
+          echo "${{ secrets.OAUTH1_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth1_token.json
 
-      - name: Show Garmin JSON output
+      - name: Decode and write oauth2_token.json
         run: |
-          today=$(date +%F)
-          echo "📦 Garmin JSON for $today:"
-          cat garmin_export/$today.json
+          echo "${{ secrets.OAUTH2_TOKEN_B64 }}" | base64 -d > /home/runner/.garminconnect/oauth2_token.json
+
+      - name: Install dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Test Garmin authentication
+        run: |
+          python3 -c "
+import os
+from garminconnect import (
+    Garmin,
+)
+
+client = Garmin()
+client.login(tokenstore='/home/runner/.garminconnect')
+print('✅ Garmin authentication successful')
+"
