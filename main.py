@@ -1,81 +1,86 @@
-import os
+from datetime import datetime, timedelta
 import json
+import os
 from openai import OpenAI
-from twilio.rest import Client as TwilioClient
+from twilio.rest import Client
 
-# === Environment variables
+# === Configuration from Environment ===
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_WHATSAPP_FROM = os.environ["TWILIO_WHATSAPP_FROM"]
 TWILIO_WHATSAPP_TO = os.environ["TWILIO_WHATSAPP_TO"]
 
-# === Load Garmin data
-with open("garmin_export_all.json", "r") as f:
-    garmin_data = json.load(f)
+# === Setup clients ===
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-# === Trimmed key values
-date = garmin_data.get("date")
-steps = garmin_data.get("steps", {})
-sleep = garmin_data.get("sleep", {}).get("dailySleepDTO", {})
-hrv = garmin_data.get("rhr", {})
-stress = garmin_data.get("stress", [])
-readiness = garmin_data.get("training_readiness", {})
-activities = garmin_data.get("workout", [])
-calories = garmin_data.get("calories", {})
+# === Load JSON data ===
+with open("garmin_export_all.json") as f:
+    today_data = json.load(f)
 
-# === Build a short summary for the prompt
-summary_data = {
-    "date": date,
-    "steps": steps,
-    "sleep": {
-        "sleepTimeSeconds": sleep.get("sleepTimeSeconds"),
-        "deepSleepSeconds": sleep.get("deepSleepSeconds"),
-        "lightSleepSeconds": sleep.get("lightSleepSeconds"),
-        "awakeSleepSeconds": sleep.get("awakeSleepSeconds")
-    },
-    "restingHeartRate": hrv.get("restingHeartRate"),
-    "stressSamples": len(stress),
-    "trainingReadinessScore": readiness[0].get("trainingReadinessScore") if isinstance(readiness, list) and readiness else None,
-    "activities": activities,
-    "calories": calories.get("totalKilocalories", 0)
-}
+# Load previous day data for comparison (if exists)
+date_format = "%Y-%m-%d"
+d1 = today_data["date"]
+d2 = (datetime.strptime(d1, date_format) - timedelta(days=1)).strftime(date_format)
 
-# === Prompt for OpenAI
+prev_data_path = f"garmin_export/{d2}.json"
+prev_data = {}
+if os.path.exists(prev_data_path):
+    with open(prev_data_path) as f:
+        prev_data = json.load(f)
+
+# === Build prompt for OpenAI ===
 prompt = f"""
-You're my personal coach. Based on the data below, give me a short WhatsApp-style message.
+You are a health assistant creating short, actionable summaries for a daily wellness dashboard.
 
-- Start with: "Hello Aurelio 👋"
-- Include only actionable insights (1–3 sentences max)
-- Recommend if I should train PM based on recovery, sleep, stress
-- Add a diet tip based on activity and calories
-- Be friendly and motivating
+User's name: Aurelio  
+Date: {today_data['date']}
 
-Garmin key data:
-{json.dumps(summary_data, indent=2)}
+Today's sleep (in seconds):
+- Deep: {today_data['sleep'].get('dailySleepDTO', {}).get('deepSleepSeconds', 0)}
+- Light: {today_data['sleep'].get('dailySleepDTO', {}).get('lightSleepSeconds', 0)}
+- Awake: {today_data['sleep'].get('dailySleepDTO', {}).get('awakeSleepSeconds', 0)}
+
+Resting HR: {today_data['rhr'].get("restingHeartRate", "N/A")}
+Steps: {today_data['steps'].get("totalSteps", 0)}
+Training Readiness Score: {today_data.get("training_readiness", {}).get("trainingReadinessScore", "N/A")}
+
+Calories: {today_data.get("calories", {}).get("totalKilocalories", "N/A")}
+
+Workouts: {len(today_data.get("workout", []))} session(s)
+{[w['activityName'] for w in today_data.get("workout", [])]}
+
+Previous day ({d2}) resting HR: {prev_data.get("rhr", {}).get("restingHeartRate", "N/A")}
+Previous day sleep total: {prev_data.get("sleep", {}).get("dailySleepDTO", {}).get("sleepTimeSeconds", "N/A")}
+
+Generate a SHORT daily summary. Use this structure:
+1. Greet Aurelio
+2. Summarize key insights
+3. Give actionable suggestions for training or recovery (e.g. “Train hard PM”, “Take it light”)
+4. Add one diet tip for today (e.g. “Increase hydration”)
+
+Always output in English. Be friendly and concise.
 """
 
-# === OpenAI Client
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-response = client.chat.completions.create(
+# === Run OpenAI ===
+response = openai_client.chat.completions.create(
     model="gpt-4",
     messages=[
-        {"role": "system", "content": "You're a training and health assistant."},
+        {"role": "system", "content": "You are a personal health assistant."},
         {"role": "user", "content": prompt}
     ],
-    temperature=0.6,
-    max_tokens=350
+    temperature=0.7,
 )
 
-message_body = response.choices[0].message.content.strip()
+summary_text = response.choices[0].message.content.strip()
+print("✅ Summary Generated:\n", summary_text)
 
-# === Twilio WhatsApp
-twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-twilio.messages.create(
-    body=message_body,
+# === Send via WhatsApp ===
+message = twilio_client.messages.create(
     from_=TWILIO_WHATSAPP_FROM,
+    body=summary_text,
     to=TWILIO_WHATSAPP_TO
 )
 
-print("✅ Summary sent to WhatsApp!")
+print("📬 WhatsApp Message SID:", message.sid)
