@@ -31,9 +31,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt -r requirements-test.txt
 
-      - name: Restore Garmin OAuth Tokens
-        run: python scripts/restore_tokens.py
-
       - name: Run Garmin export
         run: python garmin_export_all.py
 
