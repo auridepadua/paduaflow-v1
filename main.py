@@ -81,9 +81,8 @@ You're my personal coach. Based on the data below, give me a short WhatsApp-styl
 - Start with: "Hello Aurelio 👋"
 - Include Sleep stats and HRV stats
 - Include only actionable insights (1–3 sentences max)
-- Recommend if I should train PM based on recovery, sleep, stress
-- Add a diet tip based on activity and calories
-- Be friendly and motivating
+- Recommend type of trainingn (strentgh or sprinting) I should train PM based on recovery, sleep, stress
+- Be fierce and motivating
 
 Garmin key data:
 {json.dumps(summary_data, indent=2)}
