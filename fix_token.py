@@ -1,20 +1,20 @@
 import os
 import base64
 
-# Paths
+# === Define token paths
 HOME = os.path.expanduser("~")
 TOKEN_DIR = os.path.join(HOME, ".garminconnect")
+OAUTH1_PATH = os.path.join(TOKEN_DIR, "oauth1_token.json")
+OAUTH2_PATH = os.path.join(TOKEN_DIR, "oauth2_token.json")
+
+# === Read base64 tokens from environment
 oauth1_b64 = os.environ.get("GARMIN_OAUTH1_B64")
 oauth2_b64 = os.environ.get("GARMIN_OAUTH2_B64")
 
-# Read from environment secrets
-oauth1_b64 = os.environ.get("OAUTH1_B64")
-oauth2_b64 = os.environ.get("OAUTH2_B64")
-
-# Ensure target directory exists
+# === Ensure directory exists
 os.makedirs(TOKEN_DIR, exist_ok=True)
 
-# Decode and write token files
+# === Write decoded token files
 def decode_and_write(b64_str, path):
     if b64_str:
         with open(path, "wb") as f:
