@@ -1,20 +1,29 @@
-import shutil
 import os
+import base64
 
-token_folder = os.path.expanduser("~/.garminconnect")
-tokens = ["oauth1_token.json", "oauth2_token.json"]
+# Paths
+HOME = os.path.expanduser("~")
+TOKEN_DIR = os.path.join(HOME, ".garminconnect")
+OAUTH1_PATH = os.path.join(TOKEN_DIR, "oauth1_token.json")
+OAUTH2_PATH = os.path.join(TOKEN_DIR, "oauth2_token.json")
 
-for filename in tokens:
-    src_file = os.path.join(token_folder, filename)
-    dst_file = os.path.join(token_folder, filename)
-    
-    if os.path.exists(src_file):
-        if os.path.abspath(src_file) != os.path.abspath(dst_file):
-            shutil.copy(src_file, dst_file)
-            print(f"✅ Copied {filename}")
-        else:
-            print(f"✅ Token {filename} already in place")
+# Read from environment secrets
+oauth1_b64 = os.environ.get("OAUTH1_B64")
+oauth2_b64 = os.environ.get("OAUTH2_B64")
+
+# Ensure target directory exists
+os.makedirs(TOKEN_DIR, exist_ok=True)
+
+# Decode and write token files
+def decode_and_write(b64_str, path):
+    if b64_str:
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(b64_str))
+        print(f"✅ Token written to {path}")
     else:
-        print(f"⚠️ Token file {filename} not found")
+        print(f"❌ Missing base64 string for {path}")
+
+decode_and_write(oauth1_b64, OAUTH1_PATH)
+decode_and_write(oauth2_b64, OAUTH2_PATH)
 
 print("✅ Token check complete")
